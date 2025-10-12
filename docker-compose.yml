@@ -1,0 +1,107 @@
+services:
+  airflow-init:
+    build: ./airflow
+    environment:
+      - AIRFLOW_UID=${AIRFLOW_UID}
+      - AIRFLOW_GID=${AIRFLOW_GID}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
+      - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
+    command: >
+      bash -c "
+      airflow db init &&
+      airflow users create
+        --username admin
+        --firstname Admin
+        --lastname User
+        --role Admin
+        --email admin@example.com
+        --password admin || true
+      "
+    depends_on:
+      - postgres
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+
+  airflow-webserver:
+    build: ./airflow
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      - AIRFLOW_UID=${AIRFLOW_UID}
+      - AIRFLOW_GID=${AIRFLOW_GID}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
+      - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
+    ports:
+      - "8080:8080"
+    command: webserver
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+
+  airflow-scheduler:
+    build: ./airflow
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      - AIRFLOW_UID=${AIRFLOW_UID}
+      - AIRFLOW_GID=${AIRFLOW_GID}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
+      - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
+    command: scheduler
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9090"
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    volumes:
+      - minio_data:/data
+
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb -p local/stock-etl || true &&
+      mc anonymous set download local/stock-etl || true &&
+      echo 'MinIO bucket ready'
+      "
+
+volumes:
+  pgdata:
+  minio_data:

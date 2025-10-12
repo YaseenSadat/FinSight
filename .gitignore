@@ -1,0 +1,5 @@
+airflow/logs/
+__pycache__/
+.pgdata/
+minio_data/
+.env
