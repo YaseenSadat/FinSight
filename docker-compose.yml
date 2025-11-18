@@ -6,7 +6,7 @@ services:
       - AIRFLOW_GID=${AIRFLOW_GID}
       - AIRFLOW__CORE__LOAD_EXAMPLES=false
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
+      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 s3fs apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
       - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
     user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
     command: >
@@ -37,7 +37,7 @@ services:
       - AIRFLOW_GID=${AIRFLOW_GID}
       - AIRFLOW__CORE__LOAD_EXAMPLES=false
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
+      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 s3fs apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
       - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
     user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
     ports:
@@ -58,7 +58,7 @@ services:
       - AIRFLOW_GID=${AIRFLOW_GID}
       - AIRFLOW__CORE__LOAD_EXAMPLES=false
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
+      - _PIP_ADDITIONAL_REQUIREMENTS=yfinance pandas pyarrow boto3 s3fs apache-airflow-providers-amazon apache-airflow-providers-snowflake snowflake-connector-python pyspark==3.5.1
       - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
     user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
     command: scheduler
