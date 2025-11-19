@@ -1,10 +1,7 @@
-Here is a tightened, polished README for **FinSight** with the sections you requested removed and with emphasis on automated DAGs, Airflow, and Snowflake.
 
----
+# **FinSight — End to End Stock Data ETL Pipeline**
 
-# **FinSight — End to End Stock Data ELT Pipeline**
-
-FinSight is a compact but powerful ELT platform for financial market data. It ingests end of day stock prices, transforms them using distributed compute, validates quality, and publishes analytics ready tables into Snowflake. The architecture mirrors modern cloud data engineering patterns while running locally in a fully dockerized stack.
+FinSight is a compact but powerful ETL platform for financial market data. It ingests end of day stock prices, transforms them using distributed compute, validates quality, and publishes analytics ready tables into Snowflake. The architecture mirrors modern cloud data engineering patterns while running locally in a fully dockerized stack.
 
 ---
 
@@ -78,12 +75,9 @@ This gives a realistic workflow without requiring any cloud services.
 ## **Project Highlights**
 
 * Automated DAGs with Airflow for ingestion, transformation, and loading
-* Spark powered processing for scalable data shaping
-* S3 style storage through MinIO with clear tiering
-* Gold table stored in Snowflake for fast analytics
-* Modular code structure for clean orchestration
-* Easy to demo and extend, ideal for showcasing data engineering ability
-
+* Distributed Spark processing for scalable data shaping
+* Handles 15 years of S&P 500 history (>2 million records) across all tickers
+* S3 style storage through MinIO with a clear bronze → silver → gold flow
+* Validated and warehouse ready gold table stored in Snowflake
+* Modular code structure for clean orchestration and easy extension
 ---
-
-If you want, I can also make a shorter GitHub friendly version or design a simple architecture diagram for the README.
