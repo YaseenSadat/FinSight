@@ -5,7 +5,7 @@ Connection IDs and Snowflake target identifiers are defined here as constants.
 Bucket and prefix values are read from Airflow Variables at runtime so they can
 be changed without redeploying code.
 """
-from airflow.models import Variable
+from airflow.models import Variable # type: ignore
 
 # Airflow connection IDs
 AWS_CONN_ID = "minio_s3"

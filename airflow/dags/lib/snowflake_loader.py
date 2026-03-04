@@ -7,8 +7,8 @@ database, schema, and table are read from the shared config module.
 """
 from __future__ import annotations
 import pandas as pd
-from airflow.exceptions import AirflowFailException
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.exceptions import AirflowFailException # type: ignore
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook # type: ignore
 from snowflake.connector.pandas_tools import write_pandas
 
 from . import config

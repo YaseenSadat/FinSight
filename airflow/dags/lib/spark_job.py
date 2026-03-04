@@ -22,30 +22,30 @@ def build_spark() -> SparkSession:
     Reads MinIO credentials and endpoint from the Airflow minio_s3 connection
     and injects them as Hadoop S3A configuration properties.
     """
-    _, extra, creds = get_client()
+    _, extra, creds = get_client()  # pull MinIO credentials from Airflow connection
     endpoint_url = extra.get("endpoint_url") or ""
 
     return (
         SparkSession.builder.appName("stocks_transform")
         .config(
             "spark.jars.packages",
-            "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367",
+            "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367",  # S3A connectors
         )
         .config(
             "spark.hadoop.fs.s3a.endpoint",
-            endpoint_url.replace("http://", "").replace("https://", ""),
+            endpoint_url.replace("http://", "").replace("https://", ""),  # strip protocol, S3A needs host:port only
         )
-        .config("spark.hadoop.fs.s3a.path.style.access", "true")
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")  # required for MinIO (not AWS)
         .config(
             "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",  # use static key/secret, not IAM
         )
         .config("spark.hadoop.fs.s3a.access.key", creds.access_key)
         .config("spark.hadoop.fs.s3a.secret.key", creds.secret_key)
-        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-        .config("spark.sql.parquet.int96RebaseModeInRead", "CORRECTED")
+        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")  # MinIO runs over plain HTTP locally
+        .config("spark.sql.parquet.int96RebaseModeInRead", "CORRECTED")  # avoid timestamp rebase warnings
         .config("spark.sql.parquet.datetimeRebaseModeInRead", "CORRECTED")
-        .config("spark.sql.parquet.int96AsTimestamp", "true")
+        .config("spark.sql.parquet.int96AsTimestamp", "true")  # read INT96 parquet fields as timestamps
         .getOrCreate()
     )
 
@@ -72,12 +72,12 @@ def transform_raw_to_curated(load_date: Optional[str]) -> str:
     curated_prefix = config.curated_prefix()
 
     all_path = f"s3a://{bucket}/{raw_prefix}/"
-    df_all = spark.read.option("basePath", all_path).parquet(f"{all_path}ticker=*/load_date=*/*.parquet")
+    df_all = spark.read.option("basePath", all_path).parquet(f"{all_path}ticker=*/load_date=*/*.parquet")  # read all partitions
 
     if load_date:
         date_to_use = load_date
     else:
-        latest_row = (
+        latest_row = (  # find the most recent load_date in the raw data
             df_all.select(to_date(col("load_date")).alias("ld"))
             .agg(spark_max("ld").alias("max_ld"))
             .collect()[0]
@@ -88,16 +88,16 @@ def transform_raw_to_curated(load_date: Optional[str]) -> str:
             raise ValueError("No raw data found under raw/eod/")
         date_to_use = latest.strftime("%Y-%m-%d")
 
-    df = df_all.where(col("load_date") == lit(date_to_use))
+    df = df_all.where(col("load_date") == lit(date_to_use))  # filter to the target partition only
 
     out = (
-        df.withColumn("date", to_date(col("date")))
-        .select("date", "ticker", "open", "high", "low", "close", "volume", "load_ts")
+        df.withColumn("date", to_date(col("date")))  # cast date string to date type
+        .select("date", "ticker", "open", "high", "low", "close", "volume", "load_ts")  # drop any extra columns
         .orderBy("ticker", "date")
     )
 
     out_path = f"s3a://{bucket}/{curated_prefix}/load_date={date_to_use}/"
-    out.write.mode("overwrite").parquet(out_path)
+    out.write.mode("overwrite").parquet(out_path)  # overwrite so re-runs are idempotent
 
     spark.stop()
     return date_to_use

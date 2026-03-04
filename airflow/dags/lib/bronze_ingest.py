@@ -1,7 +1,7 @@
 """
 Bronze ingestion helpers.
 
-Fetches end-of-day OHLCV price history from Yahoo Finance using yfinance and
+Fetches end-of-day price history from Yahoo Finance using yfinance and
 uploads the results as parquet files to MinIO. Each ticker gets its own
 partition keyed by ticker symbol and load date. A JSON manifest is written at
 the end of every batch run to record what was uploaded.
@@ -35,7 +35,7 @@ def fetch_history(ticker: str, start_date: str, end_date: str, interval: str) ->
     Returns a normalised DataFrame with lowercase column names and a ticker
     column, or None if no data is available for the requested range.
     """
-    df = yf.Ticker(ticker).history(
+    df = yf.Ticker(ticker).history( # pull raw OHLCV data from Yahoo Finance
         start=start_date,
         end=end_date,
         interval=interval,
@@ -43,7 +43,7 @@ def fetch_history(ticker: str, start_date: str, end_date: str, interval: str) ->
     )
     if df.empty:
         return None
-    df = df.reset_index().rename(
+    df = df.reset_index().rename( # lowercase column names to match internal schema
         columns={
             "Date": "date",
             "Open": "open",
@@ -57,28 +57,20 @@ def fetch_history(ticker: str, start_date: str, end_date: str, interval: str) ->
     return df
 
 
-def upload_batch(
+def upload_batch( # main entry point called by the DAG task
     tickers_param: str | None,
     start_date: str,
     end_date: str,
     interval: str,
 ) -> IngestResult:
     """
-    Fetch and upload a batch of tickers to MinIO.
-
-    For each ticker, downloads price history, writes a local parquet file,
-    and uploads it to:
-
-        s3://<bucket>/raw/eod/ticker=<TICKER>/load_date=<DATE>/<TICKER>.parquet
-
-    After all uploads, writes a manifest JSON at:
-
-        s3://<bucket>/raw/eod/_manifests/<DATE>.json
+    Download price history for each ticker and upload parquet files to MinIO.
+    Also writes a manifest JSON recording what was uploaded.
 
     Args:
-        tickers_param:  Comma-separated ticker string, or None to use the default list.
+        tickers_param:  Comma-separated tickers, or None to use the default list.
         start_date:     History start date (YYYY-MM-DD).
-        end_date:       History end date   (YYYY-MM-DD).
+        end_date:       History end date (YYYY-MM-DD).
         interval:       Price interval (e.g. "1d").
 
     Returns:
@@ -94,7 +86,7 @@ def upload_batch(
     requested = tickers.parse(tickers_param)
     uploaded: List[str] = []
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory() as tmpdir: # temp folder for parquet files, cleaned up automatically
         tmp_path = Path(tmpdir)
         for t in requested:
             df = fetch_history(t, start_date, end_date, interval)
@@ -112,12 +104,12 @@ def upload_batch(
                 allow_truncated_timestamps=True,
             )
 
-            key = f"{prefix}/ticker={t}/load_date={load_date}/{t}.parquet"
+            key = f"{prefix}/ticker={t}/load_date={load_date}/{t}.parquet" # build the partitioned S3 path
             print(f"Uploading {local_parquet} to s3://{bucket}/{key}")
             s3.upload_file(str(local_parquet), bucket, key)
             uploaded.append(t)
 
-    manifest = {
+    manifest = { # summary of the run to write as a JSON manifest
         "tickers": requested,
         "uploaded": uploaded,
         "start_date": start_date,
@@ -127,7 +119,7 @@ def upload_batch(
         "prefix": prefix,
         "load_ts": load_ts.isoformat(),
     }
-    put_json(
+    put_json( # upload the manifest to MinIO alongside the parquet files
         client=s3,
         bucket=bucket,
         key=f"{prefix}/_manifests/{load_date}.json",
