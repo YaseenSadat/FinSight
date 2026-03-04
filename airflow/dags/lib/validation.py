@@ -1,4 +1,15 @@
-"""Validation helpers for curated data."""
+"""
+Curated data validation helpers.
+
+Reads a silver partition from MinIO and applies a set of data quality checks
+before it is loaded into Snowflake. Raises AirflowFailException on any failure
+so the DAG task is marked as failed rather than silently passing bad data.
+
+Checks performed:
+    - All required columns are present.
+    - No nulls in ticker, date, or close.
+    - No duplicate (ticker, date) pairs.
+"""
 from __future__ import annotations
 import re
 from typing import List, Optional
@@ -13,6 +24,11 @@ REQUIRED_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume", 
 
 
 def _find_latest_partition(fs) -> str:
+    """
+    Scan the curated prefix in MinIO and return the most recent load_date.
+
+    Raises AirflowFailException if no partitions are found.
+    """
     root = f"{config.bucket()}/{config.curated_prefix()}"
     entries = fs.ls(root)
     dates: List[str] = []
@@ -28,6 +44,15 @@ def _find_latest_partition(fs) -> str:
 
 
 def read_curated(load_date: Optional[str]) -> tuple[pd.DataFrame, str]:
+    """
+    Read a curated partition from MinIO into a pandas DataFrame.
+
+    Args:
+        load_date:  Partition date (YYYY-MM-DD), or None to use the latest.
+
+    Returns:
+        Tuple of (DataFrame, load_date string used).
+    """
     import s3fs
 
     fs = s3fs.S3FileSystem(**storage_options())
@@ -38,6 +63,18 @@ def read_curated(load_date: Optional[str]) -> tuple[pd.DataFrame, str]:
 
 
 def validate_curated(load_date: Optional[str]) -> tuple[pd.DataFrame, str]:
+    """
+    Read and validate a curated partition.
+
+    Runs data quality checks and returns the cleaned DataFrame. Raises
+    AirflowFailException if any check fails.
+
+    Args:
+        load_date:  Partition date (YYYY-MM-DD), or None to use the latest.
+
+    Returns:
+        Tuple of (validated DataFrame, load_date string used).
+    """
     df, date_used = read_curated(load_date)
 
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]

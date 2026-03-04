@@ -1,4 +1,10 @@
-"""Spark transform helpers for raw -> curated."""
+"""
+Spark transformation helpers — raw (bronze) to curated (silver).
+
+Builds a SparkSession configured for MinIO S3A access and runs a transformation
+that reads all raw parquet files for a given load_date partition, standardises
+the schema, and writes the result back to MinIO as a curated parquet partition.
+"""
 from __future__ import annotations
 from typing import Optional
 
@@ -10,7 +16,12 @@ from .s3 import get_client
 
 
 def build_spark() -> SparkSession:
-    """Create a SparkSession configured for MinIO S3A access."""
+    """
+    Create a SparkSession configured for MinIO S3A access.
+
+    Reads MinIO credentials and endpoint from the Airflow minio_s3 connection
+    and injects them as Hadoop S3A configuration properties.
+    """
     _, extra, creds = get_client()
     endpoint_url = extra.get("endpoint_url") or ""
 
@@ -40,7 +51,21 @@ def build_spark() -> SparkSession:
 
 
 def transform_raw_to_curated(load_date: Optional[str]) -> str:
-    """Read raw parquet, filter by load_date (or latest), write curated, return date used."""
+    """
+    Transform a bronze partition into a curated (silver) partition.
+
+    Reads all raw parquet files under raw/eod/, filters to the specified
+    load_date (or the latest available if none is given), standardises column
+    types, and writes the result to:
+
+        s3://<bucket>/curated/eod/load_date=<date>/
+
+    Args:
+        load_date:  Partition date string (YYYY-MM-DD), or None to use the latest.
+
+    Returns:
+        The load_date string that was actually processed.
+    """
     spark = build_spark()
     bucket = config.bucket()
     raw_prefix = config.raw_prefix()

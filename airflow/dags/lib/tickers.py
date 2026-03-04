@@ -1,4 +1,9 @@
-"""Ticker utilities and defaults."""
+"""
+Ticker utilities and defaults.
+
+Provides the default S&P 500 ticker list used by the ingestion DAG and a
+helper for parsing a comma-separated ticker string into a de-duplicated list.
+"""
 from __future__ import annotations
 from typing import List
 
@@ -9,6 +14,15 @@ DEFAULT_TICKERS = (
 
 
 def parse(param: str | None) -> List[str]:
+    """
+    Parse a comma-separated ticker string into a de-duplicated ordered list.
+
+    Args:
+        param:  Comma-separated ticker string, or None to use DEFAULT_TICKERS.
+
+    Returns:
+        List of uppercase ticker symbols with duplicates removed, order preserved.
+    """
     base = param.strip() if param else DEFAULT_TICKERS
     tickers = []
     for part in base.split(","):

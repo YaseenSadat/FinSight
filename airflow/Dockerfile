@@ -7,3 +7,14 @@ RUN apt-get update \
 
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 USER airflow
+
+RUN pip install --no-cache-dir \
+    yfinance \
+    pandas \
+    pyarrow \
+    boto3 \
+    s3fs \
+    "apache-airflow-providers-amazon==8.16.0" \
+    "apache-airflow-providers-snowflake==5.5.2" \
+    snowflake-connector-python \
+    "pyspark==3.5.1"

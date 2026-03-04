@@ -3,3 +3,5 @@ __pycache__/
 .pgdata/
 minio_data/
 .env
+
+docker-compose.yml

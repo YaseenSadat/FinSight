@@ -1,4 +1,10 @@
-"""Snowflake load helpers."""
+"""
+Snowflake load helpers.
+
+Provides a single function that writes a pandas DataFrame into the Snowflake
+gold table using the snowflake-connector write_pandas utility. The target
+database, schema, and table are read from the shared config module.
+"""
 from __future__ import annotations
 import pandas as pd
 from airflow.exceptions import AirflowFailException
@@ -9,6 +15,16 @@ from . import config
 
 
 def load_dataframe(df: pd.DataFrame) -> None:
+    """
+    Write a DataFrame to the Snowflake gold table.
+
+    Sets the warehouse, database, and schema context before writing, then uses
+    write_pandas for efficient bulk loading. Raises AirflowFailException if the
+    context setup fails or if no rows are written.
+
+    Args:
+        df: DataFrame with uppercase column names matching STOCKS.CURATED.EOD_PRICES.
+    """
     hook = SnowflakeHook(snowflake_conn_id=config.SNOWFLAKE_CONN_ID)
     conn = hook.get_conn()
     cur = conn.cursor()

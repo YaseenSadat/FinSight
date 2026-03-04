@@ -1,11 +1,18 @@
+"""
+Gold load DAG.
+
+Validates the latest curated partition from MinIO and loads it into Snowflake
+(STOCKS.CURATED.EOD_PRICES). Tasks: validate_curated → load_to_snowflake.
+Trigger param: load_date (optional).
+"""
 from __future__ import annotations
 from datetime import datetime
 import io
-import pandas as pd
+import pandas as pd # type: ignore
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.exceptions import AirflowFailException
+from airflow.operators.python import PythonOperator # type: ignore
+from airflow.exceptions import AirflowFailException # type: ignore
 
 from lib import config
 from lib.validation import validate_curated
@@ -15,6 +22,7 @@ DAG_ID = "validate_and_load_to_snowflake"
 
 
 def _validate(**context):
+    """Validate the curated partition and push the DataFrame to XCom."""
     params = context.get("params", {}) or {}
     df, date_used = validate_curated(load_date=params.get("load_date"))
     # XCom payload as JSON string
@@ -22,6 +30,7 @@ def _validate(**context):
 
 
 def _load(ti, **_):
+    """Pull the validated DataFrame from XCom, rename columns, and load to Snowflake."""
     result = ti.xcom_pull(task_ids="validate_curated")
     if not result or not result.get("payload"):
         raise AirflowFailException("No data from validate_curated")
