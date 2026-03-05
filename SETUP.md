@@ -72,7 +72,7 @@ docker compose up -d airflow-webserver airflow-scheduler
 
 | Service | URL | Credentials |
 |---|---|---|
-| Airflow UI | http://localhost:8080 | admin / admin |
+| Airflow UI | http://localhost:8081 | admin / admin |
 | MinIO Console | http://localhost:9090 | your .env values |
 
 MinIO should have a `stock-etl` bucket created automatically. If it's missing, run `docker compose up minio-setup` again.
@@ -141,10 +141,10 @@ Go to **Airflow UI → Admin → Connections → "+" (Add new)**.
 
 ## 7. Run the DAGs
 
-In the Airflow UI, trigger each DAG in order and wait for it to go green before starting the next:
+In the Airflow UI, trigger **`stock_eod_to_minio`** manually. The rest of the pipeline runs automatically via trigger chain:
 
-1. **`stock_eod_to_minio`** — fetches EOD stock prices and writes raw parquet to MinIO (Bronze)
-2. **`transform_raw_to_curated`** — Spark job that curates the raw data (Silver)
+1. **`stock_eod_to_minio`** — fetches EOD stock prices and writes raw parquet to MinIO (Bronze) → triggers DAG 2 on success
+2. **`transform_raw_to_curated`** — Spark job that curates the raw data (Silver) → triggers DAG 3 on success
 3. **`validate_and_load_to_snowflake`** — validates and loads the final data into Snowflake (Gold)
 
 ---

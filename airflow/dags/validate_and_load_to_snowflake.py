@@ -23,8 +23,10 @@ DAG_ID = "validate_and_load_to_snowflake"
 
 def _validate(**context):
     """Validate the curated partition and push the DataFrame to XCom."""
+    conf = (context["dag_run"].conf or {}) if context.get("dag_run") else {}
     params = context.get("params", {}) or {}
-    df, date_used = validate_curated(load_date=params.get("load_date"))
+    load_date = conf.get("load_date") or params.get("load_date")
+    df, date_used = validate_curated(load_date=load_date)
     # XCom payload as JSON string
     return {"payload": df.to_json(orient="records"), "load_date": date_used}
 

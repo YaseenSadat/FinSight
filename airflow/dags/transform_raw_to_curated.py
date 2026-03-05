@@ -10,6 +10,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator # type: ignore
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator # type: ignore
 
 from lib import config
 from lib.spark_job import transform_raw_to_curated
@@ -18,9 +19,11 @@ DAG_ID = "transform_raw_to_curated"
 
 
 def _run_spark(**context):
-    """Read the load_date param and invoke the Spark transform."""
+    """Read the load_date from trigger conf or params, then invoke the Spark transform."""
+    conf = (context["dag_run"].conf or {}) if context.get("dag_run") else {}
     params = context.get("params", {}) or {}
-    used_date = transform_raw_to_curated(load_date=params.get("load_date"))
+    load_date = conf.get("load_date") or params.get("load_date")
+    used_date = transform_raw_to_curated(load_date=load_date)
     return {"load_date": used_date}
 
 
@@ -32,7 +35,16 @@ with DAG(
     catchup=False,
     tags=["dev", "minio", "parquet", "stocks"],
 ) as dag:
-    PythonOperator(
+    t_spark = PythonOperator(
         task_id="run_spark",
         python_callable=_run_spark,
     )
+
+    t_trigger = TriggerDagRunOperator(
+        task_id="trigger_validate",
+        trigger_dag_id="validate_and_load_to_snowflake",
+        conf={"load_date": "{{ ti.xcom_pull('run_spark')['load_date'] }}"},
+        wait_for_completion=False,
+    )
+
+    t_spark >> t_trigger

@@ -9,6 +9,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator # type: ignore
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator # type: ignore
 
 from lib import bronze_ingest, config, tickers
 
@@ -57,8 +58,17 @@ with DAG(
     tags=["dev", "stocks", "minio", "parquet"],
     params=_default_params(),
 ) as dag:
-    PythonOperator(
+    t_ingest = PythonOperator(
         task_id="fetch_and_upload",
         python_callable=_fetch_and_upload,
         provide_context=True,
     )
+
+    t_trigger = TriggerDagRunOperator(
+        task_id="trigger_transform",
+        trigger_dag_id="transform_raw_to_curated",
+        conf={"load_date": "{{ ti.xcom_pull('fetch_and_upload')['load_date'] }}"},
+        wait_for_completion=False,
+    )
+
+    t_ingest >> t_trigger
