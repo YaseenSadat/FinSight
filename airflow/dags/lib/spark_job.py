@@ -27,6 +27,9 @@ def build_spark() -> SparkSession:
 
     return (
         SparkSession.builder.appName("stocks_transform")
+        .master("spark://spark-master:7077")  # connect to the Spark standalone cluster
+        .config("spark.driver.host", "airflow-scheduler")  # workers connect back to this host
+        .config("spark.driver.bindAddress", "0.0.0.0")  # listen on all interfaces inside the container
         .config(
             "spark.jars.packages",
             "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367",  # S3A connectors

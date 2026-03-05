@@ -60,10 +60,10 @@ Start the MinIO bucket setup:
 docker compose up minio-setup
 ```
 
-Finally, start Airflow:
+Finally, start Airflow and the Spark cluster:
 
 ```bash
-docker compose up -d airflow-webserver airflow-scheduler
+docker compose up -d airflow-webserver airflow-scheduler spark-master spark-worker
 ```
 
 ---
@@ -74,6 +74,7 @@ docker compose up -d airflow-webserver airflow-scheduler
 |---|---|---|
 | Airflow UI | http://localhost:8081 | admin / admin |
 | MinIO Console | http://localhost:9090 | your .env values |
+| Spark UI | http://localhost:8082 | none |
 
 MinIO should have a `stock-etl` bucket created automatically. If it's missing, run `docker compose up minio-setup` again.
 
