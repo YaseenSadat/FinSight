@@ -1,0 +1,7 @@
+# description: Broad US market index ETFs (S&P 500, Nasdaq-100, Dow, Russell 2000, total market)
+# source: curated
+SPY
+QQQ
+DIA
+IWM
+VTI

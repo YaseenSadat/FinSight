@@ -1,0 +1,13 @@
+# description: Select Sector SPDR ETFs covering the eleven GICS sectors
+# source: curated
+XLB
+XLC
+XLE
+XLF
+XLI
+XLK
+XLP
+XLRE
+XLU
+XLV
+XLY
