@@ -1,0 +1,19 @@
+# Only pyproject.toml, README.md, LICENSE and src/ are needed to build the Airflow image.
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+data
+docs
+tests
+platform/airflow/logs
+.env
+*.egg-info
+dist
+build
