@@ -1,0 +1,181 @@
+# FinSight platform stack (Option 2): Airflow + MinIO, with an optional Spark cluster.
+#
+#   docker compose up -d                    # Airflow + MinIO + Postgres
+#   docker compose --profile spark up -d    # ...plus a Spark master and worker
+#
+# UIs: Airflow http://localhost:8080 (admin/admin), MinIO http://localhost:9001,
+#      Spark http://localhost:8082 (spark profile only).
+# See docs/platform.md for details. Local-only usage (Option 1) needs none of this.
+
+name: finsight
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: platform/airflow/Dockerfile
+  image: finsight-airflow:local
+  env_file:
+    - path: .env
+      required: false
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:-finsight-local-dev-secret}
+    AIRFLOW__API_AUTH__JWT_ISSUER: finsight
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    # FinSight: gold/silver/bronze live in MinIO instead of ./data.
+    PYTHONPATH: /opt/finsight/src
+    FINSIGHT_STORAGE: s3
+    FINSIGHT_S3_BUCKET: ${FINSIGHT_S3_BUCKET:-finsight}
+    FINSIGHT_S3_ENDPOINT_URL: http://minio:9000
+    AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-finsight}
+    AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-finsight-secret}
+    FINSIGHT_SPARK_MASTER: spark://spark-master:7077
+    FINSIGHT_SPARK_DRIVER_HOST: airflow-scheduler
+    FINSIGHT_SPARK_JARS_DIR: /opt/spark-extra-jars
+  volumes:
+    - ./platform/airflow/dags:/opt/airflow/dags:ro
+    - ./src:/opt/finsight/src:ro # live-reload library changes without rebuilding
+    - airflow-logs:/opt/airflow/logs
+    - spark-jars:/opt/spark-extra-jars:ro
+  user: "50000:0"
+  depends_on: &airflow-depends
+    postgres:
+      condition: service_healthy
+    minio:
+      condition: service_started
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    # MinIO no longer publishes community images to Docker Hub; Chainguard
+    # builds the open-source server from source.
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-finsight}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-finsight-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        set -e
+        /entrypoint airflow version
+        for attempt in $$(seq 1 30); do
+          finsight storage init && exit 0
+          echo "waiting for MinIO ($$attempt/30)..." && sleep 2
+        done
+        exit 1
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    hostname: airflow-scheduler # Spark executors connect back to the driver here
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  # --- Optional Spark cluster: docker compose --profile spark up -d -----------------------
+
+  spark-jars:
+    profiles: [spark]
+    image: curlimages/curl:8.12.1
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/fetch-jars.sh"]
+    volumes:
+      - ./platform/spark/fetch-jars.sh:/fetch-jars.sh:ro
+      - spark-jars:/jars
+
+  spark-master:
+    profiles: [spark]
+    image: apache/spark:4.1.3-java17
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "8082:8080"
+    depends_on:
+      spark-jars:
+        condition: service_completed_successfully
+
+  spark-worker:
+    profiles: [spark]
+    image: apache/spark:4.1.3-java17
+    command: >-
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077 --memory 2g --cores 2
+    volumes:
+      - spark-jars:/opt/spark-extra-jars:ro
+    depends_on:
+      - spark-master
+
+volumes:
+  postgres-data:
+  minio-data:
+  airflow-logs:
+  spark-jars:
