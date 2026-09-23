@@ -116,6 +116,8 @@ and download the results:
 finsight ui        # opens http://localhost:8501
 ```
 
+![FinSight web UI: request builder in the sidebar, with Run, Explore, SQL, and History tabs](docs/images/web-ui.png)
+
 **Try it offline.** The `synthetic` provider generates deterministic fake data with no network
 access, which is useful for demos and development:
 
