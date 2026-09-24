@@ -476,10 +476,9 @@ def main() -> None:
         st.stop()
 
     st.title("FinSight")
-    location = current.data_dir.resolve() if current.storage == "local" else current.s3_bucket
     st.caption(
         f"Validated, query-ready market data · v{__version__} · storage: "
-        f"{current.storage} (`{location}`)"
+        f"{current.storage} (`{current.display_location()}`)"
     )
 
     request, engine = request_form()

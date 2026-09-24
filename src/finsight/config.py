@@ -128,6 +128,24 @@ class Settings:
             ),
         )
 
+    def display_location(self) -> str:
+        """Short, shareable description of where data is stored.
+
+        Local paths are shown relative to the working directory (or ``~``) so
+        screenshots and logs don't expose the full filesystem layout.
+        """
+        if self.storage == "s3":
+            return f"s3://{self.s3_bucket}/{self.s3_prefix}".rstrip("/")
+        path = self.data_dir.expanduser().resolve()
+        for base, prefix in ((Path.cwd().resolve(), "."), (Path.home().resolve(), "~")):
+            if base == Path(base.anchor):
+                continue  # relative to "/" would still expose the full path
+            try:
+                return f"{prefix}/{path.relative_to(base).as_posix()}"
+            except ValueError:
+                continue
+        return path.as_posix()
+
     def describe(self) -> dict[str, Any]:
         """Return a printable view of the settings with secrets masked."""
 

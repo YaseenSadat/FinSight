@@ -62,3 +62,16 @@ def test_dotenv_is_loaded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     (tmp_path / ".env").write_text("FINSIGHT_MAX_WORKERS=7\n")
     monkeypatch.delenv("FINSIGHT_MAX_WORKERS", raising=False)
     assert Settings.from_env().max_workers == 7
+
+
+def test_display_location_hides_absolute_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert Settings(data_dir=tmp_path / "data").display_location() == "./data"
+    assert Settings(data_dir=Path("data")).display_location() == "./data"
+    monkeypatch.setattr(Path, "home", lambda: tmp_path.parent)
+    monkeypatch.chdir("/")
+    assert Settings(data_dir=tmp_path / "data").display_location() == f"~/{tmp_path.name}/data"
+    s3 = Settings(storage="s3", s3_bucket="finsight", s3_prefix="team")
+    assert s3.display_location() == "s3://finsight/team"

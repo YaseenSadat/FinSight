@@ -258,19 +258,13 @@ def _print_run(manifest: RunManifest, settings: Settings) -> None:
     counts = ", ".join(f"{count} {status}" for status, count in manifest.counts().items())
     console.print(f"Run [bold]{manifest.run_id}[/] [{style}]{manifest.status.value}[/] ({counts})")
     if any(r.status == SymbolStatus.PUBLISHED for r in manifest.symbols.values()):
-        console.print(f"Data: [cyan]{_location(settings)}[/]")
+        console.print(f"Data: [cyan]{settings.display_location()}[/]")
         console.print(
             'Next: [cyan]finsight query "SELECT * FROM ohlcv LIMIT 10"[/]  '
             "or  [cyan]finsight catalog[/]"
         )
     if any(r.status in FAILURE_STATUSES for r in manifest.symbols.values()):
         console.print(f"Details: [cyan]finsight runs show {manifest.run_id}[/]")
-
-
-def _location(settings: Settings) -> str:
-    if settings.storage == "local":
-        return str(settings.data_dir.resolve())
-    return f"s3://{settings.s3_bucket}/{settings.s3_prefix}".rstrip("/")
 
 
 def _fmt(value: int | None) -> str:
