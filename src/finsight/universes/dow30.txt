@@ -1,0 +1,33 @@
+# description: Dow Jones Industrial Average constituents
+# source: https://en.wikipedia.org/wiki/List_of_Dow_Jones_Industrial_Average_companies
+# as_of: 2026-09-30
+AAPL
+AMGN
+AMZN
+AXP
+BA
+CAT
+CRM
+CSCO
+CVX
+DIS
+GOOGL
+GS
+HD
+HON
+IBM
+JNJ
+JPM
+KO
+MCD
+MMM
+MRK
+MSFT
+NKE
+NVDA
+PG
+SHW
+TRV
+UNH
+V
+WMT

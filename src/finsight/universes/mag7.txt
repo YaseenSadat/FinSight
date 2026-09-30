@@ -1,0 +1,9 @@
+# description: "Magnificent Seven" mega-cap technology stocks
+# source: curated
+AAPL
+MSFT
+GOOGL
+AMZN
+META
+NVDA
+TSLA
