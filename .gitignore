@@ -1,7 +1,32 @@
-airflow/logs/
-__pycache__/
-.pgdata/
-minio_data/
-.env
+# Local data written by FinSight (bronze/silver/gold, manifests, DuckDB catalog)
+/data/
 
-docker-compose.yml
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
